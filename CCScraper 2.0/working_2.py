@@ -7,6 +7,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+
+# Set the user agent for the requests
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+}
 
 
 def download_resource(url, folder_path):
@@ -26,7 +32,7 @@ def download_resource(url, folder_path):
             print(f"Downloaded resource: {url}")
         else:
             print(
-                f"Failed to download resource: {url}, status code: {response.status_code}")
+                f"Failed to download resource:x {url}, status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"Failed to download resource: {url}, error: {e}")
 
@@ -65,6 +71,7 @@ def download_website(url, folder_path):
     chrome_options = Options()
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--allow-running-insecure-content')
@@ -72,8 +79,11 @@ def download_website(url, folder_path):
     # Set the path for the Chrome driver
     chromedriver_path = '/home/s13g/Documents/Downloads/chromedriver/chromedriver'
 
+    # Create a Service object with the path to the chromedriver executable
+    service = Service(executable_path=chromedriver_path)
+
     # Initialize the Chrome browser driver
-    driver = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.get(url)
     # Wait for the Cloudflare security check to complete
     WebDriverWait(driver, 30).until(
@@ -83,11 +93,12 @@ def download_website(url, folder_path):
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     # Wait for the lazy-loading images to fully load
-    time.sleep(30)  # You can adjust the time based on the website's loading speed
+    # You can adjust the time based on the website's loading speed
+    time.sleep(30)
 
     # Get the HTML content of the website
     html_content = driver.page_source
-    
+
     # Parse the HTML content using BeautifulSoup
     soup = BeautifulSoup(html_content, 'html.parser')
     # driver.quit()

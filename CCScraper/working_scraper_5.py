@@ -1,9 +1,14 @@
 import os
-
+import time
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from urllib.parse import unquote
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+
 
 # Set up options to run Chrome in headless mode and disable image loading
 chrome_options = Options()
@@ -15,6 +20,16 @@ chrome_options.add_experimental_option('prefs', prefs)
 # Start Chrome and navigate to the homepage
 driver = webdriver.Chrome()
 driver.get('https://www.classcentral.com')
+
+# Wait for the Cloudflare security check to complete
+WebDriverWait(driver, 30).until(
+    EC.presence_of_element_located((By.TAG_NAME, 'body')))
+
+# Scroll down to the end of the page to trigger the lazy-loading images to load
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+# Wait for the lazy-loading images to fully load
+time.sleep(10)
 
 # Extract all links from the homepage
 soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -36,7 +51,8 @@ for link in links:
         page_source = driver.page_source
 
         # Save the HTML to a file
-        file_path = os.path.join('files', link[link.index('//') + 2:].replace('/', '_') + '.html')
+        file_path = os.path.join(
+            'files', link[link.index('//') + 2:].replace('/', '_') + '.html')
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(page_source)
 
@@ -58,7 +74,8 @@ for link in links:
                 continue
 
             # Download the resource and save it to a file
-            file_path = os.path.join('files', file_url[file_url.index('//') + 2:].replace('/', '_'))
+            file_path = os.path.join(
+                'files', file_url[file_url.index('//') + 2:].replace('/', '_'))
             with open(file_path, 'wb') as f:
                 f.write(requests.get(file_url).content)
 
