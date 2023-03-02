@@ -69,5 +69,5 @@ for link in links:
                 filename = link.split('/')[-1]
                 with open(os.path.join(dir_name, filename), 'wb') as f:
                     f.write(content)
-
 # quit
+driver.quit()
