@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # Set the options for the headless Chrome browser
 chrome_options = Options()
-# chrome_options.add_argument('--headless')
+chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
@@ -36,14 +36,14 @@ driver = webdriver.Chrome(service=service, options=chrome_options)
 driver.get(url)
 
 # Wait for the Cloudflare security check to complete
-WebDriverWait(driver, 30).until(
+WebDriverWait(driver, 5).until(
     EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
 # Scroll down to the end of the page to trigger the lazy-loading images to load
 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
 # Wait for the lazy-loading images to fully load
-time.sleep(10)  # You can adjust the time based on the website's loading speed
+# time.sleep(10)  # You can adjust the time based on the website's loading speed
 
 # Get the HTML content of the website
 html_content = driver.page_source
@@ -71,7 +71,7 @@ for link in links:
 
     # Load the link in the browser and wait for it to load completely
     driver.get(url)
-    WebDriverWait(driver, 30).until(
+    WebDriverWait(driver, 5).until(
         EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
     # Get the HTML content
@@ -84,7 +84,7 @@ for link in links:
     # Download all the resources (images, CSS files, JS files) from the page
     for resource in soup.find_all(['img', 'link', 'script']):
         url = resource.get('src') or resource.get('href')
-        if not url:
+        if not url or 'ccweb.imgix.net' in url:
             continue
 
         # Make sure the URL is absolute
