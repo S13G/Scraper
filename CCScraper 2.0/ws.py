@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # Set the options for the headless Chrome browser
 chrome_options = Options()
-chrome_options.add_argument('--headless')
+# chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
@@ -43,7 +43,7 @@ WebDriverWait(driver, 30).until(
 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
 # Wait for the lazy-loading images to fully load
-time.sleep(60)  # You can adjust the time based on the website's loading speed
+time.sleep(10)  # You can adjust the time based on the website's loading speed
 
 # Get the HTML content of the website
 html_content = driver.page_source
@@ -51,74 +51,71 @@ html_content = driver.page_source
 # Parse the HTML content using BeautifulSoup
 soup = BeautifulSoup(html_content, 'html.parser')
 
+# Extract all the links from the homepage (index.html)
+links = soup.find_all('a')
+
 # Create a directory to save the downloaded resources
 download_directory = 'downloaded_resources'
 if not os.path.exists(download_directory):
     os.makedirs(download_directory)
 
-# Download all the resources (HTML, CSS, JS, images, etc.)
-resources = soup.find_all(
-    ['link', 'script', 'img', 'video', 'audio', 'source', 'iframe'])
-for resource in resources:
-    # Get the URL of the resource
-    if resource.name in ['link', 'script', 'iframe']:
-        url = resource.get('src') or resource.get('href')
-    else:
-        url = resource.get('src') or resource.get(
-            'data-src') or resource.get('poster')
+# Iterate through each link and scrape their first page and resources
+for link in links:
+    # Get the URL of the link
+    url = link.get('href')
     if not url:
         continue
 
     # Make sure the URL is absolute
     url = urljoin(driver.current_url, url)
 
-    # Download the resource
-    try:
-        response = requests.get(url, stream=True)
-        if response.status_code == 200:
-            # Get the filename of the resource
-            parsed_url = urlparse(unquote(url))
-            filename = os.path.basename(parsed_url.path)
-            if not filename:
-                filename = 'index.html'
-            filepath = os.path.join(download_directory, filename)
+    # Load the link in the browser and wait for it to load completely
+    driver.get(url)
+    WebDriverWait(driver, 30).until(
+        EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
-            # Save the resource to the file
+    # Get the HTML content
+    html_content = driver.page_source
+
+    # Parse the HTML using BeautifulSoup
+    soup = BeautifulSoup(html_content, 'html.parser')
+    resources = set()
+
+    # Download all the resources (images, CSS files, JS files) from the page
+    for resource in soup.find_all(['img', 'link', 'script']):
+        url = resource.get('src') or resource.get('href')
+        if not url:
+            continue
+
+        # Make sure the URL is absolute
+        url = urljoin(driver.current_url, url)
+
+        # Download the resource and save it to the download directory
+        filename = unquote(os.path.basename(urlparse(url).path))
+        filepath = os.path.join(download_directory, filename.replace('/', '_'))
+        if not os.path.exists(filepath):
+            response = requests.get(url, stream=True)
             with open(filepath, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=1024):
                     f.write(chunk)
-    except Exception as e:
-        print(f'Error downloading resource: {url}: {e}')
 
-# Replace all the resource URLs in the HTML content with the local file paths
-for resource in resources:
-    # Get the URL of the resource
-    if resource.name in ['link', 'script', 'iframe']:
-        url = resource.get('src') or resource.get('href')
-    else:
-        url = resource.get('src') or resource.get(
-            'data-src') or resource.get('poster')
-    if not url:
-        continue
+        # Replace the URL in the HTML content with the local file path
+        local_url = os.path.join(os.getcwd(), filepath)
+        html_content = html_content.replace(url, local_url)
+        resources.add(local_url)
 
-    # Make sure the URL is absolute
-    url = urljoin(driver.current_url, url)
-
-    # Get the local file path of the resource
-    parsed_url = urlparse(unquote(url))
-    filename = os.path.basename(parsed_url.path)
+    # Save the HTML content to a file in the download directory
+    filename = unquote(os.path.basename(urlparse(url).path))
     if not filename:
         filename = 'index.html'
     filepath = os.path.join(download_directory, filename)
+    with open(filepath, 'w') as f:
+        f.write(html_content)
 
-    # Replace the resource URL with the local file path in the HTML content
-    if resource.name in ['link', 'script', 'iframe']:
-        resource['src'] = filepath
-    else:
-        resource['src'] = filepath if resource.get('src') else None
-        resource['data-src'] = filepath if resource.get('data-src') else None
-        resource['poster'] = filepath if resource.get('poster') else None
-        with open(os.path.join(download_directory, 'index.html'), 'w') as f:
-            f.write(str(soup))
+    # Print a summary of the downloaded resources
+    print(f'Downloaded {filename} ({len(resources)} resources):')
+    for resource in resources:
+        print(f'  {resource}')
+
 
 driver.quit()
