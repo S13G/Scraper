@@ -41,7 +41,7 @@ links = soup.find_all('a')
 resources = set()
 
 # Create a directory to save the downloaded resources
-download_directory = 'downloaded_resources'
+download_directory = 'resources'
 if not os.path.exists(download_directory):
     os.makedirs(download_directory)
 
@@ -95,10 +95,13 @@ for link in links:
         file_extension = file_extension.split(';')[0]
 
         # Generate a unique filename for the resource based on its URL and file extension
-        # parsed_url = urlparse(url)
-        # filename = unquote(os.path.basename(parsed_url.path))
-        # if not filename:
-        #     filename = 'index'
+        parsed_url = urlparse(url)
+        # Check if the resource has already been downloaded
+        filename = unquote(os.path.basename(urlparse(url).path))
+        if filename in resources or os.path.exists(os.path.join(download_directory, filename)):
+            continue
+        if not filename:
+            filename = 'index'
         filename = f"{filename[:100]}.{file_extension}"
         i = 1
         while filename in resources:
