@@ -13,7 +13,7 @@ client = ZenRowsClient(
 
 url = "https://www.classcentral.com"
 
-params = {"js_render": "true", "antibot": "true", "premium_proxy": "true",
+params = {"js_render": "true", "antibot": "false", "premium_proxy": "true",
           "proxy_country": "gb", "session_id": "5"}
 
 # Add a User-Agent header to the requests sent by the ZenRowsClient
@@ -25,7 +25,6 @@ response = client.get(url, params=params, headers=headers)
 
 # Get the HTML content of the website from the API response
 html_content = response.content
-print(html_content)
 
 # If the HTML content is a file, read its contents
 if os.path.isfile(html_content):
@@ -74,6 +73,11 @@ for link in links:
         if not url or 'ccweb.imgix.net' in url or "d3f1iyfxxz8i1e.cloudfront.net" in url or url.startswith('data:'):
             continue
 
+        # Check if the resource has already been downloaded
+        filename = unquote(os.path.basename(urlparse(url).path))
+        if filename in resources:
+            continue
+
         # Make sure the URL is absolute
         url = urljoin(link_url, url)
 
@@ -82,44 +86,45 @@ for link in links:
                                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"}, params=params)
         content_type = response.headers.get('content-type')
 
-        if 'text' in content_type or 'html' in content_type:
-            parsed_url = urlparse(url)
-            path = parsed_url.path if parsed_url.path else 'index.html'
-            filename = os.path.join(
-                download_directory, unquote(os.path.basename(path)))
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(response.text)
+        if not content_type:
+            continue
+
+        # Get the file extension from the content type
+        file_extension = magic.from_buffer(
+            response.content, mime=True).split('/')[1]
+        file_extension = file_extension.split(';')[0]
+
+        # Generate a unique filename for the resource based on its URL and file extension
+        # parsed_url = urlparse(url)
+        # filename = unquote(os.path.basename(parsed_url.path))
+        # if not filename:
+        #     filename = 'index'
+        filename = f"{filename[:100]}.{file_extension}"
+        i = 1
+        while filename in resources:
+            filename = f"{filename[:100]}_{i}.{file_extension}"
+            i += 1
+
+        # Save the resource to the appropriate file
+        with open(os.path.join(download_directory, filename), 'wb') as f:
+            f.write(response.content)
+
+        # Add the downloaded resource to the set of downloaded resources
+        resources.add(filename)
+
+        # Replace the URL in the HTML content with the local file path
+        local_path = os.path.join('.', download_directory, filename)
+        existing_link = soup.find(
+            link.name, attrs={'href': link.get('href'), 'src': link.get('src')})
+        if existing_link:
+            existing_link.replace_with(link_soup.new_tag(
+                link.name, href=local_path) if link.name == 'a' else link_soup.new_tag(link.name, src=local_path))
         else:
-            parsed_url = urlparse(url)
-            path = parsed_url.path if parsed_url.path else 'index.html'
-            filename = os.path.join(
-                download_directory, unquote(os.path.basename(path)))
-            if os.path.isdir(filename):
-                continue
-            with open(filename, 'wb') as f:
-                f.write(response.content)
+            print('Could not find link to replace:', link)
 
-    # Download the HTML file of the page and save it to the appropriate file
-    parsed_url = urlparse(url)
-    path = parsed_url.path if parsed_url.path else 'index.html'
-    filename = os.path.join(
-        download_directory, unquote(os.path.basename(path)))
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(link_html_content)
 
-    # Print a summary of the downloaded resources
-    print(f'Downloaded {filename}({len(resources)} resources')
+# Save the modified HTML content to a file in the download directory
+with open(os.path.join(download_directory, f"{filename}.html"), 'w') as f:
+    f.write(str(link_soup))
 
-    #     # Replace the URL in the HTML content with the local file path
-    #     local_url = os.path.join(os.getcwd(), filepath)
-    #     link_html_content = html_content.replace(url, local_url)
-    #     resources.add(local_url)
-    #     print(resources)
-
-    # # Save the HTML content to a file in the download directory
-    # filename = unquote(os.path.basename(urlparse(url).path))
-    # if not filename:
-    #     filename = 'index.html'
-    # filepath = os.path.join(download_directory, filename)
-    # with open(filepath, 'w') as f:
-    #     f.write(link_html_content)
+print("Scraping complete!")
