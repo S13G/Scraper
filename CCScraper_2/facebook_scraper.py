@@ -1,11 +1,11 @@
 # Import the necessary libraries
-from itertools import zip_longest
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import re
+import matplotlib.pyplot as plt
 import pandas as pd
 import time
 
@@ -98,11 +98,28 @@ positive_df = pd.DataFrame({'Positive Keywords': positive_sentences})
 negative_df = pd.DataFrame({'Negative Keywords': negative_sentences})
 other_df = pd.DataFrame({'Other Keywords': other_sentences})
 
+# Create a bar chart showing the number of positive and negative sentences
+counts = [len(positive_sentences), len(
+    negative_sentences), len(other_sentences)]
+labels = ['Positive', 'Negative', 'Others']
+colors = ['#4CAF50', '#F44336', '#45CAFD']
+plt.bar(labels, counts, color=colors)
+
+# Add title and axis labels
+plt.title('Sentiment Analysis Results')
+plt.xlabel('Sentiment')
+plt.ylabel('Number of Sentences')
+
+# Save the plot to a file
+plt.savefig('plot.png')
+
+# Close the plot
+plt.close()
+
 # Concatenate the DataFrames and write to CSV and XLSX files
 df = pd.concat([positive_df, negative_df, other_df], axis=1)
 df.to_csv('results.csv', index=False)
 with pd.ExcelWriter('results.xlsx') as writer:
     df.to_excel(writer, sheet_name='Sheet1', index=False)
-
 # Close the Selenium driver
 driver.quit()
