@@ -4,6 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
+from decouple import config
 import re
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -31,8 +32,8 @@ driver.get(url)
 
 # Find the search box and enter the keywords
 # Login to Facebook first
-email = "ayflix0@gmail.com"
-password = "S13gd0ma1n£"
+email = config("USERNAME")
+password = config("PASSWORD")
 email_box = driver.find_element(By.ID, "email")
 password_box = driver.find_element(By.ID, "pass")
 email_box.send_keys(email)
